@@ -22,6 +22,10 @@ create unique index if not exists profiles_email_unique on profiles(lower(email)
 create table login_attempts(identifier text primary key, failures int not null default 0, locked_until timestamptz);
 
 create function is_teacher() returns boolean language sql stable security definer set search_path=public as
+$$ select exists(select 1 from profiles where id=auth.uid() and role='teacher' and active) $$;
+create function is_developer() returns boolean language sql stable security definer set search_path=public as
+$$ select exists(select 1 from profiles where id=auth.uid() and role='developer' and active) $$;
+create function is_staff() returns boolean language sql stable security definer set search_path=public as
 $$ select exists(select 1 from profiles where id=auth.uid() and role in ('teacher','developer') and active) $$;
 
 -- The auth-login Edge Function atomically reserves each attempt with its
@@ -46,11 +50,15 @@ grant execute on function login_start(text),login_ok(text) to service_role;
 
 -- ===== Row-level security: nothing is readable unless a policy allows it =====
 alter table profiles enable row level security; alter table login_attempts enable row level security;
-create policy own_profile on profiles for select to authenticated using (id=auth.uid() or is_teacher());
+create policy own_profile on profiles for select to authenticated using (id=auth.uid() or is_developer());
 do $$ declare t text; begin foreach t in array array['students','events','attendance','assets','assignments','assessments','rank_history','reviews','notation','audit'] loop
+ alter table public.profiles enable row level security;
  execute format('alter table %I enable row level security',t);
- execute format('create policy teacher_all on %I for all to authenticated using (is_teacher()) with check (is_teacher())',t);
+ execute format('create policy staff_read on %I for select to authenticated using (is_staff())',t);
+ execute format('create policy developer_all on %I for all to authenticated using (is_developer()) with check (is_developer())',t);
 end loop; end $$;
+create policy teacher_add_students on students for insert to authenticated with check (is_teacher() and user_id is null);
+create policy teacher_add_attendance on attendance for insert to authenticated with check (is_teacher());
 -- Members: their own record only. Term-test / O/L marks stay hidden; band exam marks are visible.
 create policy m_student on students for select to authenticated using (user_id=auth.uid());
 create policy m_attendance on attendance for select to authenticated using (student_id in (select id from students where user_id=auth.uid()));
@@ -67,3 +75,4 @@ create policy m_assets on assets for select to authenticated using (true);
 --   insert into profiles(id,full_name,role) select id,'Student A','member'  from auth.users where email='member@yourschool.lk';
 -- 3) Link a member login to their student row:
 --   update students set user_id=(select id from auth.users where email='member@yourschool.lk') where enrolment_no='MCWB-2026-0042';
+
