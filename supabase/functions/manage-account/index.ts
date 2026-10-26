@@ -21,7 +21,7 @@ Deno.serve(async (request) => {
 
   const authorization = request.headers.get("Authorization") || "";
   const token = authorization.replace(/^Bearer\s+/i, "");
-  if (!token) return respond(401, { error: "Sign in as a teacher to create accounts." });
+  if (!token) return respond(401, { error: "Sign in as a developer to manage accounts." });
 
   const admin = createClient(url, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -34,9 +34,9 @@ Deno.serve(async (request) => {
     .select("role,active")
     .eq("id", authData.user.id)
     .maybeSingle();
-  if (profileError) return respond(500, { error: "Could not verify teacher access." });
-  if (!profile || !["teacher", "developer"].includes(profile.role) || !profile.active) {
-    return respond(403, { error: "Only an active teacher or developer can create accounts." });
+  if (profileError) return respond(500, { error: "Could not verify developer access." });
+  if (!profile || profile.role !== "developer" || !profile.active) {
+    return respond(403, { error: "Only an active developer can manage accounts." });
   }
 
   let body: Record<string, unknown>;
@@ -46,6 +46,37 @@ Deno.serve(async (request) => {
     return respond(400, { error: "Request body must be valid JSON." });
   }
 
+  const action = String(body.action || "invite");
+
+  if (action === "delete") {
+    const userId = String(body.user_id || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return respond(400, { error: "Select a valid account." });
+    if (userId === authData.user.id) return respond(409, { error: "You cannot delete your own signed-in account." });
+
+    const { data: target, error: targetError } = await admin
+      .from("profiles")
+      .select("id,full_name,email,role,active")
+      .eq("id", userId)
+      .maybeSingle();
+    if (targetError) return respond(500, { error: "Could not find the account." });
+    if (!target) return respond(404, { error: "The account was not found." });
+    if (target.role === "developer" && target.active) {
+      const { count, error: countError } = await admin
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "developer")
+        .eq("active", true);
+      if (countError) return respond(500, { error: "Could not verify the remaining developer accounts." });
+      if ((count || 0) <= 1) return respond(409, { error: "You cannot delete the last active developer account." });
+    }
+
+    const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
+    if (deleteError) return respond(400, { error: deleteError.message || "Could not delete the account." });
+    return respond(200, { deleted: { id: target.id, full_name: target.full_name, email: target.email, role: target.role } });
+  }
+
+  if (action !== "invite") return respond(400, { error: "Choose invite or delete." });
+
   const name = String(body.name || "").trim();
   const email = String(body.email || "").trim().toLowerCase();
   const role = String(body.role || "");
@@ -53,8 +84,8 @@ Deno.serve(async (request) => {
   if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return respond(400, { error: "Enter a name and valid email address." });
   }
-  const allowedRoles = profile.role === "developer" ? ["teacher", "member", "developer"] : ["teacher", "member"];
-  if (!allowedRoles.includes(role)) return respond(403, { error: "Only a developer can create developer accounts." });
+  const allowedRoles = ["teacher", "member", "developer"];
+  if (!allowedRoles.includes(role)) return respond(400, { error: "Choose a valid account role." });
 
   if (role === "member") {
     if (!studentId) return respond(400, { error: "Select the student record to link." });
@@ -109,3 +140,4 @@ Deno.serve(async (request) => {
     student_id: role === "member" ? studentId : null,
   });
 });
+
