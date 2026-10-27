@@ -1,5 +1,3 @@
--- Teachers are read-only except that they may add unlinked student records
--- and new attendance rows. Developers manage operational records.
 create or replace function public.is_teacher()
 returns boolean
 language sql stable security definer set search_path = public
@@ -68,5 +66,4 @@ create policy teacher_add_attendance on public.attendance
   for insert to authenticated
   with check (public.is_teacher());
 
--- Keep the existing member-only read policies; students receive no write access.
 
