@@ -1,4 +1,3 @@
--- Upgrade databases created with the original email-keyed login counter.
 alter table public.login_attempts rename column email to identifier;
 
 drop function if exists public.login_gate(text);
@@ -32,3 +31,4 @@ $$ update public.login_attempts set failures=0,locked_until=null where identifie
 
 revoke all on function public.login_start(text),public.login_ok(text) from public,anon,authenticated;
 grant execute on function public.login_start(text),public.login_ok(text) to service_role;
+
