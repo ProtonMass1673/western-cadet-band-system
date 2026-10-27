@@ -1,9 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://protonmass1673.github.io",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
 };
 
 const respond = (status: number, body: unknown) => new Response(JSON.stringify(body), {
