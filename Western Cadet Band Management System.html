@@ -34,7 +34,7 @@ const RANKS=['Cadet','Lance Corporal','Corporal','Sergeant','Staff Sergeant','Wa
 const isDeveloper=()=>role=='Developer',isTeacher=()=>role=='Bandmaster';
 let D={},role='Bandmaster',view='dashboard',sel=null,tab='Overview',q='',aev='',asec='All',fs='All';
 const $=s=>document.querySelector(s),E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),today=()=>new Date().toISOString().slice(0,10),id=()=>crypto.randomUUID();
-const can=()=>isDeveloper(),canAdd=k=>isDeveloper()||(isTeacher()&&['members','attendance'].includes(k)),S=i=>D.students.find(x=>x.id==i)||{},A=i=>D.assets.find(x=>x.id==i)||{},open=a=>D.assignments.find(x=>x.asset_id==a&&!x.returned_on);
+const can=k=>isDeveloper()||(isTeacher()&&k=='notation'),canAdd=k=>isDeveloper()||(isTeacher()&&['members','attendance'].includes(k)),S=i=>D.students.find(x=>x.id==i)||{},A=i=>D.assets.find(x=>x.id==i)||{},open=a=>D.assignments.find(x=>x.asset_id==a&&!x.returned_on);
 const ok=x=>x.status=='Present'||x.status=='Late',pc=v=>v==null?'—':v+'%';
 const att=sid=>{const r=D.attendance.filter(x=>x.student_id==sid);return r.length?Math.round(100*r.filter(ok).length/r.length):null};
 
