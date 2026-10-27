@@ -1,3 +1,22 @@
+drop policy if exists staff_read on public.notation;
+drop policy if exists notation_active_accounts_read on public.notation;
+create policy notation_active_accounts_read on public.notation
+  for select to authenticated
+  using (
+    exists (
+      select 1
+      from public.profiles
+      where id = auth.uid()
+        and active
+        and role in ('teacher', 'member', 'developer')
+    )
+  );
+
+drop policy if exists teacher_notation_manage on public.notation;
+create policy teacher_notation_manage on public.notation
+  for all to authenticated
+  using (public.is_teacher())
+  with check (public.is_teacher());
 insert into public.notation (id, name, category, url, updated)
 values
   ('55000000-0000-4000-8000-000000000001', '🔴 National Anthem', 'Stationary Songs', 'https://drive.google.com/file/d/1cfeXYBrb2OWcfD1KHRuWD9vBcGK-JVaL/view?usp=drive_link', current_date),
