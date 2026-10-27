@@ -1,9 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://protonmass1673.github.io",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
 };
 
 const respond = (status: number, body: unknown) => new Response(JSON.stringify(body), {
@@ -59,8 +61,6 @@ Deno.serve(async (request) => {
     }
   }
 
-  // Known IDs and email sign-ins share one counter, so changing the sign-in label
-  // does not give an account another set of attempts.
   const counterId = profile?.email?.toLowerCase() || normalized;
   const { data: gate, error: gateError } = await admin.rpc("login_start", { p_identifier: counterId });
   if (gateError) return respond(500, { error: "Could not check sign-in attempts." });
@@ -94,3 +94,4 @@ Deno.serve(async (request) => {
     user: { id: profile.id, full_name: profile.full_name, role: profile.role },
   });
 });
+
