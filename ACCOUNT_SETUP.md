@@ -1,10 +1,12 @@
 # Supabase setup and student enrollment
 
-The connected app uses Supabase for student records, attendance, accounts, and role-based access. The HTML file points to the school's Supabase project and is published on GitHub Pages. The schema, authentication functions, Supabase Auth URLs, and custom SMTP sender have been configured there.
+The connected app uses Supabase for student records, attendance, accounts, and role-based access. The HTML file points to the school's Supabase project, and the repository includes a GitHub Pages deployment workflow. The repository is public to support GitHub Pages, so its source, history, and Actions logs are visible to everyone. GitHub Pages is configured to deploy with Actions; the app link becomes available after a successful run.
 
 ## Supabase database and functions
 
 For a new project, run `schema.sql` once in **SQL Editor**. For an existing installation, apply the migrations in order: `supabase/migrations/202610190001_profiles_email.sql`, `supabase/migrations/202610190002_developer_role.sql`, `supabase/migrations/202610230001_student_id_login.sql`, then `supabase/migrations/202610260001_role_permissions.sql`.
+
+Apply the remaining notation migrations in timestamp order, then apply `supabase/migrations/202611040001_security_hardening.sql` before deploying the updated Edge Functions. The hardening migration adds field constraints, service-role-only rate-limit functions, and a security-event log. Do not deploy the updated `auth-login` or `manage-account` functions before the migration, because both now call those database functions.
 
 The two functions are:
 
@@ -19,6 +21,12 @@ supabase functions deploy auth-login --project-ref <project-ref> --no-verify-jwt
 ```
 
 The repository's `supabase/config.toml` sets `verify_jwt = false` for both functions; each function still validates the user's JWT and role inside the function. Only developers may invite or delete accounts. Account deletion removes the Supabase Auth user and profile and unlinks (but does not delete) a student record.
+
+## Security configuration
+
+In Supabase Authentication settings, set the minimum password length to 12 or more characters, enable leaked-password protection when the project plan supports it, and keep one-time password, invitation, and password-recovery links at 3600 seconds or less. Require MFA for developer accounts. These hosted settings cannot be enforced by the static app code.
+
+The app sends the publishable key from the browser; that key is expected to be public. Keep the secret/service-role key only in Supabase Function secrets. Passwords are handled and hashed by Supabase Auth. The browser keeps only the access token in memory; it does not store the session in a cookie or local storage.
 
 ## Teacher and developer permissions
 
@@ -54,7 +62,7 @@ set full_name = excluded.full_name,
     active = true;
 ```
 
-Developer and teacher accounts sign in with their registered email address, not a developer ID. The initial developer can invite teachers and students; only a developer can invite another developer. Do not use a short shared password. Set a unique password of at least 8 characters through the invitation flow.
+Developer and teacher accounts sign in with their registered email address, not a developer ID. The initial developer can invite teachers and students; only a developer can invite another developer. Use a unique password of at least 12 characters through the invitation flow.
 
 ## Enroll a student and give them their own dashboard
 
